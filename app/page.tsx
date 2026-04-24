@@ -2,20 +2,20 @@
 import { useStore } from "@/lib/store";
 import { formatDate } from "@/lib/utils";
 import Link from "next/link";
-import { PlusCircle, MapPin, Image as ImageIcon } from "lucide-react";
+import { PlusCircle, MapPin, Image as ImageIcon, Rss, Cloud } from "lucide-react";
 import PostcardThumb from "@/components/PostcardThumb";
 
 export default function HomePage() {
   const { postcards, trips } = useStore();
   const recent = postcards.slice(0, 6);
-  const activeTrips = trips.slice(0, 3);
+  const activeTrips = trips.slice(0, 4);
 
   return (
     <div className="flex flex-col">
-      {/* Hero */}
-      <div className="bg-gradient-to-br from-emerald-500 to-teal-700 text-white px-5 pt-12 pb-8">
+      {/* Hero — taller on desktop */}
+      <div className="bg-gradient-to-br from-emerald-500 to-teal-700 text-white px-5 pt-12 pb-8 md:rounded-2xl md:mb-6">
         <p className="text-emerald-100 text-sm font-medium tracking-wide uppercase">Travel Buddy</p>
-        <h1 className="text-3xl font-bold mt-1">
+        <h1 className="text-3xl md:text-4xl font-bold mt-1">
           {postcards.length === 0 ? "Start your journey" : "Your adventures"}
         </h1>
         <div className="flex gap-4 mt-4 text-sm text-emerald-100">
@@ -25,22 +25,24 @@ export default function HomePage() {
         </div>
       </div>
 
-      <div className="p-4 flex flex-col gap-6">
+      <div className="p-4 md:p-0 flex flex-col gap-6">
         {/* Quick actions */}
-        <div className="grid grid-cols-2 gap-3">
-          <Link
-            href="/postcards/new"
-            className="flex items-center gap-3 bg-emerald-50 border border-emerald-200 rounded-2xl p-4 hover:bg-emerald-100 transition-colors"
-          >
-            <PlusCircle className="text-emerald-600" size={24} />
-            <span className="font-semibold text-emerald-800">New Postcard</span>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <Link href="/postcards/new" className="flex items-center gap-3 bg-emerald-50 border border-emerald-200 rounded-2xl p-4 hover:bg-emerald-100 transition-colors">
+            <PlusCircle className="text-emerald-600 shrink-0" size={24} />
+            <span className="font-semibold text-emerald-800 text-sm">New Postcard</span>
           </Link>
-          <Link
-            href="/trips/new"
-            className="flex items-center gap-3 bg-teal-50 border border-teal-200 rounded-2xl p-4 hover:bg-teal-100 transition-colors"
-          >
-            <MapPin className="text-teal-600" size={24} />
-            <span className="font-semibold text-teal-800">New Trip</span>
+          <Link href="/trips/new" className="flex items-center gap-3 bg-teal-50 border border-teal-200 rounded-2xl p-4 hover:bg-teal-100 transition-colors">
+            <MapPin className="text-teal-600 shrink-0" size={24} />
+            <span className="font-semibold text-teal-800 text-sm">New Trip</span>
+          </Link>
+          <Link href="/weather" className="flex items-center gap-3 bg-sky-50 border border-sky-200 rounded-2xl p-4 hover:bg-sky-100 transition-colors">
+            <Cloud className="text-sky-600 shrink-0" size={24} />
+            <span className="font-semibold text-sky-800 text-sm">Packing List</span>
+          </Link>
+          <Link href="/feed" className="flex items-center gap-3 bg-violet-50 border border-violet-200 rounded-2xl p-4 hover:bg-violet-100 transition-colors">
+            <Rss className="text-violet-600 shrink-0" size={24} />
+            <span className="font-semibold text-violet-800 text-sm">Public Feed</span>
           </Link>
         </div>
 
@@ -51,12 +53,12 @@ export default function HomePage() {
               <h2 className="font-bold text-stone-800">Trips</h2>
               <Link href="/trips" className="text-sm text-emerald-600 font-medium">See all</Link>
             </div>
-            <div className="flex gap-3 overflow-x-auto pb-1 -mx-1 px-1">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
               {activeTrips.map((trip) => (
                 <Link
                   key={trip.id}
                   href={`/trips/${trip.id}`}
-                  className="flex-shrink-0 bg-white border border-stone-200 rounded-2xl p-3 w-36 hover:shadow-md transition-shadow"
+                  className="bg-white border border-stone-200 rounded-2xl p-3 hover:shadow-md transition-shadow"
                 >
                   <div className="text-2xl mb-1">{trip.emoji}</div>
                   <p className="font-semibold text-stone-800 text-sm truncate">{trip.name}</p>
@@ -79,15 +81,12 @@ export default function HomePage() {
             <div className="flex flex-col items-center gap-3 py-12 text-stone-400">
               <ImageIcon size={40} strokeWidth={1} />
               <p className="text-sm">No postcards yet — create your first!</p>
-              <Link
-                href="/postcards/new"
-                className="mt-1 px-4 py-2 bg-emerald-600 text-white text-sm rounded-full font-medium"
-              >
+              <Link href="/postcards/new" className="mt-1 px-4 py-2 bg-emerald-600 text-white text-sm rounded-full font-medium">
                 Create Postcard
               </Link>
             </div>
           ) : (
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
               {recent.map((pc) => (
                 <PostcardThumb key={pc.id} postcard={pc} />
               ))}

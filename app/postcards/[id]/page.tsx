@@ -1,14 +1,17 @@
 "use client";
+import { useState } from "react";
 import { useStore } from "@/lib/store";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Trash2, Share2 } from "lucide-react";
+import { ArrowLeft, Trash2, Share2, Printer } from "lucide-react";
 import { formatDate } from "@/lib/utils";
 import TemplatePreview from "@/components/TemplatePreview";
+import PrintOrderModal from "@/components/PrintOrderModal";
 
 export default function PostcardDetailPage({ params }: { params: { id: string } }) {
   const { id } = params;
   const router = useRouter();
   const { postcards, trips, removePostcard } = useStore();
+  const [showPrint, setShowPrint] = useState(false);
   const postcard = postcards.find((p) => p.id === id);
 
   if (!postcard) {
@@ -35,11 +38,14 @@ export default function PostcardDetailPage({ params }: { params: { id: string } 
 
   return (
     <div className="flex flex-col">
-      <div className="flex items-center justify-between px-4 pt-10 pb-4">
+      <div className="flex items-center justify-between px-4 pt-10 pb-4 md:pt-0">
         <button onClick={() => router.back()} className="p-2 -ml-2 rounded-full hover:bg-stone-100">
           <ArrowLeft size={20} />
         </button>
         <div className="flex gap-2">
+          <button onClick={() => setShowPrint(true)} className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 border border-emerald-200 text-emerald-700 rounded-full text-sm font-medium hover:bg-emerald-100 transition-colors">
+            <Printer size={15} /> Print & Ship
+          </button>
           <button onClick={handleShare} className="p-2 rounded-full hover:bg-stone-100">
             <Share2 size={20} className="text-stone-500" />
           </button>
@@ -49,38 +55,53 @@ export default function PostcardDetailPage({ params }: { params: { id: string } 
         </div>
       </div>
 
-      <div className="px-4 pb-8 flex flex-col gap-4">
-        <TemplatePreview
-          templateId={postcard.templateId}
-          photos={postcard.photos}
-          message={postcard.message}
-          location={postcard.location}
-          stickers={postcard.stickers}
-          messageColor={postcard.messageColor}
-          messageFontSize={postcard.messageFontSize}
-        />
+      <div className="px-4 pb-8 md:px-0 flex flex-col gap-4 md:flex-row md:gap-6">
+        <div className="md:flex-1">
+          <TemplatePreview
+            templateId={postcard.templateId}
+            photos={postcard.photos}
+            message={postcard.message}
+            location={postcard.location}
+            stickers={postcard.stickers}
+            messageColor={postcard.messageColor}
+            messageFontSize={postcard.messageFontSize}
+          />
+        </div>
 
-        <div className="bg-stone-50 rounded-2xl p-4 flex flex-col gap-2 text-sm">
-          <div className="flex justify-between text-stone-500">
-            <span>Template</span>
-            <span className="capitalize text-stone-700 font-medium">{postcard.templateId}</span>
-          </div>
-          <div className="flex justify-between text-stone-500">
-            <span>Created</span>
-            <span className="text-stone-700 font-medium">{formatDate(postcard.createdAt)}</span>
-          </div>
-          {trip && (
+        <div className="md:w-64 flex flex-col gap-3">
+          <div className="bg-stone-50 rounded-2xl p-4 flex flex-col gap-2 text-sm">
             <div className="flex justify-between text-stone-500">
-              <span>Trip</span>
-              <span className="text-stone-700 font-medium">{trip.emoji} {trip.name}</span>
+              <span>Template</span>
+              <span className="capitalize text-stone-700 font-medium">{postcard.templateId}</span>
             </div>
-          )}
-          <div className="flex justify-between text-stone-500">
-            <span>Photos</span>
-            <span className="text-stone-700 font-medium">{postcard.photos.length}</span>
+            <div className="flex justify-between text-stone-500">
+              <span>Created</span>
+              <span className="text-stone-700 font-medium">{formatDate(postcard.createdAt)}</span>
+            </div>
+            {trip && (
+              <div className="flex justify-between text-stone-500">
+                <span>Trip</span>
+                <span className="text-stone-700 font-medium">{trip.emoji} {trip.name}</span>
+              </div>
+            )}
+            <div className="flex justify-between text-stone-500">
+              <span>Photos</span>
+              <span className="text-stone-700 font-medium">{postcard.photos.length}</span>
+            </div>
           </div>
+
+          <button
+            onClick={() => setShowPrint(true)}
+            className="hidden md:flex items-center justify-center gap-2 w-full bg-emerald-600 hover:bg-emerald-700 text-white py-3 rounded-xl font-semibold transition-colors"
+          >
+            <Printer size={16} /> Print & Ship — ~$4.99
+          </button>
         </div>
       </div>
+
+      {showPrint && postcard.photos[0] && (
+        <PrintOrderModal imageUrl={postcard.photos[0]} onClose={() => setShowPrint(false)} />
+      )}
     </div>
   );
 }

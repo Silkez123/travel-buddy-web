@@ -1,7 +1,7 @@
 "use client";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Home, BookOpen, Map, Globe, Stamp } from "lucide-react";
+import { Home, BookOpen, Globe, Map, Stamp } from "lucide-react";
 
 const tabs = [
   { href: "/", label: "Home", icon: Home },
@@ -14,7 +14,7 @@ const tabs = [
 export default function BottomNav() {
   const pathname = usePathname();
   return (
-    <nav className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-md bg-white border-t border-stone-200 flex z-50">
+    <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-stone-200 flex z-50 md:hidden">
       {tabs.map(({ href, label, icon: Icon }) => {
         const active = href === "/" ? pathname === "/" : pathname.startsWith(href);
         return (
