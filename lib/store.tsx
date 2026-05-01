@@ -1,7 +1,7 @@
 "use client";
 import React, { createContext, useContext, useEffect, useState, useCallback, useRef } from "react";
 import type { User } from "@supabase/supabase-js";
-import { Postcard, Trip, SavedPlace, SavedExperience, BoardingPass } from "@/types";
+import { Postcard, Trip, SavedPlace, SavedExperience, BoardingPass, Booking } from "@/types";
 import * as db from "@/lib/db";
 import { createClient } from "@/lib/supabase/client";
 
@@ -24,6 +24,10 @@ interface StoreState {
   markExperienceBooked: (id: string, booked: boolean) => Promise<void>;
   addBoardingPass: (p: BoardingPass) => Promise<void>;
   removeBoardingPass: (id: string) => Promise<void>;
+  bookings: Booking[];
+  addBooking: (b: Booking) => Promise<void>;
+  updateBookingStatus: (id: string, status: Booking["status"]) => Promise<void>;
+  removeBooking: (id: string) => Promise<void>;
   signOut: () => Promise<void>;
 }
 
@@ -37,6 +41,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   const [savedPlaces, setSavedPlaces] = useState<SavedPlace[]>([]);
   const [savedExperiences, setSavedExperiences] = useState<SavedExperience[]>([]);
   const [boardingPasses, setBoardingPasses] = useState<BoardingPass[]>([]);
+  const [bookings, setBookings] = useState<Booking[]>([]);
   const [loading, setLoading] = useState(true);
   const migratedRef = useRef(false);
 
@@ -45,30 +50,30 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     setLoading(true);
     try {
       if (currentUser) {
-        const [t, p, s, e, bp] = await Promise.all([
+        const [t, p, s, e, bp, bk] = await Promise.all([
           db.sb_getAllTrips(supabase),
           db.sb_getAllPostcards(supabase),
           db.sb_getAllSavedPlaces(supabase),
           db.sb_getAllSavedExperiences(supabase),
           db.sb_getAllBoardingPasses(supabase),
+          db.sb_getAllBookings(supabase),
         ]);
-        setTrips(t);
-        setPostcards(p);
-        setSavedPlaces(s);
-        setSavedExperiences(e);
-        setBoardingPasses(bp);
+        setTrips(t); setPostcards(p); setSavedPlaces(s);
+        setSavedExperiences(e); setBoardingPasses(bp); setBookings(bk);
       } else {
-        const [t, p, s, e] = await Promise.all([
+        const [t, p, s, e, bk] = await Promise.all([
           db.idb_getAllTrips(),
           db.idb_getAllPostcards(),
           db.idb_getAllSavedPlaces(),
           db.idb_getAllSavedExperiences(),
+          db.idb_getAllBookings(),
         ]);
         setTrips(t.sort((a, b) => b.createdAt.localeCompare(a.createdAt)));
         setPostcards(p.sort((a, b) => b.createdAt.localeCompare(a.createdAt)));
         setSavedPlaces(s);
         setSavedExperiences(e.sort((a, b) => b.savedAt.localeCompare(a.savedAt)));
-        setBoardingPasses([]); // Boarding passes are cloud-only (auth required)
+        setBoardingPasses([]);
+        setBookings(bk.sort((a, b) => b.createdAt.localeCompare(a.createdAt)));
       }
     } catch (err) {
       console.error("Store load error:", err);
@@ -169,6 +174,23 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     setBoardingPasses((prev) => prev.filter((x) => x.id !== id));
   }, [user]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  const addBooking = useCallback(async (b: Booking) => {
+    if (user) await db.sb_saveBooking(supabase, b, user.id);
+    else await db.idb_saveBooking(b);
+    setBookings((prev) => [b, ...prev.filter((x) => x.id !== b.id)]);
+  }, [user]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const updateBookingStatus = useCallback(async (id: string, status: Booking["status"]) => {
+    if (user) await db.sb_updateBookingStatus(supabase, id, status);
+    setBookings((prev) => prev.map((b) => b.id === id ? { ...b, status } : b));
+  }, [user]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const removeBooking = useCallback(async (id: string) => {
+    if (user) await db.sb_deleteBooking(supabase, id);
+    else await db.idb_deleteBooking(id);
+    setBookings((prev) => prev.filter((b) => b.id !== id));
+  }, [user]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const signOut = useCallback(async () => {
     await supabase.auth.signOut();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
@@ -176,12 +198,13 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   return (
     <StoreContext.Provider
       value={{
-        user, postcards, trips, savedPlaces, savedExperiences, boardingPasses, loading,
+        user, postcards, trips, savedPlaces, savedExperiences, boardingPasses, bookings, loading,
         addPostcard, removePostcard,
         addTrip, removeTrip,
         addSavedPlace, removeSavedPlace,
         addSavedExperience, removeSavedExperience, markExperienceBooked,
         addBoardingPass, removeBoardingPass,
+        addBooking, updateBookingStatus, removeBooking,
         signOut,
       }}
     >

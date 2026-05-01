@@ -145,3 +145,18 @@ export interface TranslationResult {
   detectedSourceLang: string;
   translatedText: string;
 }
+
+export type BookingStatus = "pending" | "confirmed" | "cancelled";
+
+export interface Booking {
+  id: string;
+  experience: Experience;
+  date: string;
+  adults: number;
+  children: number;
+  totalPrice: number;
+  currency: string;
+  status: BookingStatus;
+  notes?: string;
+  createdAt: string;
+}

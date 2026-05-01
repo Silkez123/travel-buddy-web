@@ -1,6 +1,6 @@
 import { openDB, DBSchema, IDBPDatabase } from "idb";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { Postcard, Trip, SavedPlace, SavedExperience, BoardingPass } from "@/types";
+import { Postcard, Trip, SavedPlace, SavedExperience, BoardingPass, Booking } from "@/types";
 
 // ── IndexedDB (local / offline) ───────────────────────────────────────────────
 
@@ -10,13 +10,14 @@ interface TravelBuddyDB extends DBSchema {
   saved_places: { key: string; value: SavedPlace };
   saved_experiences: { key: string; value: SavedExperience };
   boarding_passes: { key: string; value: BoardingPass };
+  bookings: { key: string; value: Booking };
 }
 
 let dbPromise: Promise<IDBPDatabase<TravelBuddyDB>> | null = null;
 
 function getDB() {
   if (!dbPromise) {
-    dbPromise = openDB<TravelBuddyDB>("travel-buddy", 2, {
+    dbPromise = openDB<TravelBuddyDB>("travel-buddy", 3, {
       upgrade(db, oldVersion) {
         if (oldVersion < 1) {
           const postcardStore = db.createObjectStore("postcards", { keyPath: "id" });
@@ -27,6 +28,9 @@ function getDB() {
         if (oldVersion < 2) {
           db.createObjectStore("saved_experiences", { keyPath: "id" });
           db.createObjectStore("boarding_passes", { keyPath: "id" });
+        }
+        if (oldVersion < 3) {
+          db.createObjectStore("bookings", { keyPath: "id" });
         }
       },
     });
@@ -322,6 +326,65 @@ export async function sb_saveBoardingPass(supabase: SupabaseClient, p: BoardingP
 }
 export async function sb_deleteBoardingPass(supabase: SupabaseClient, id: string): Promise<void> {
   const { error } = await supabase.from("boarding_passes").delete().eq("id", id);
+  if (error) throw error;
+}
+
+// Bookings — IndexedDB
+export async function idb_getAllBookings(): Promise<Booking[]> {
+  const db = await getDB();
+  return db.getAll("bookings");
+}
+export async function idb_saveBooking(b: Booking): Promise<void> {
+  const db = await getDB();
+  await db.put("bookings", b);
+}
+export async function idb_deleteBooking(id: string): Promise<void> {
+  const db = await getDB();
+  await db.delete("bookings", id);
+}
+
+// Bookings — Supabase
+export async function sb_getAllBookings(supabase: SupabaseClient): Promise<Booking[]> {
+  const { data, error } = await supabase
+    .from("bookings")
+    .select("*")
+    .order("created_at", { ascending: false });
+  if (error) throw error;
+  return (data ?? []).map((row) => ({
+    id: row.id as string,
+    experience: row.experience as Booking["experience"],
+    date: row.date as string,
+    adults: row.adults as number,
+    children: row.children as number,
+    totalPrice: row.total_price as number,
+    currency: row.currency as string,
+    status: row.status as Booking["status"],
+    notes: row.notes as string | undefined,
+    createdAt: row.created_at as string,
+  }));
+}
+export async function sb_saveBooking(supabase: SupabaseClient, b: Booking, userId: string): Promise<void> {
+  const { error } = await supabase.from("bookings").upsert({
+    id: b.id,
+    user_id: userId,
+    experience: b.experience,
+    date: b.date,
+    adults: b.adults,
+    children: b.children,
+    total_price: b.totalPrice,
+    currency: b.currency,
+    status: b.status,
+    notes: b.notes ?? null,
+    created_at: b.createdAt,
+  });
+  if (error) throw error;
+}
+export async function sb_updateBookingStatus(supabase: SupabaseClient, id: string, status: Booking["status"]): Promise<void> {
+  const { error } = await supabase.from("bookings").update({ status }).eq("id", id);
+  if (error) throw error;
+}
+export async function sb_deleteBooking(supabase: SupabaseClient, id: string): Promise<void> {
+  const { error } = await supabase.from("bookings").delete().eq("id", id);
   if (error) throw error;
 }
 
