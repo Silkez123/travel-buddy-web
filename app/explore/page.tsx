@@ -1,154 +1,232 @@
 "use client";
-import { useState, useEffect } from "react";
-import { useStore } from "@/lib/store";
-import { SavedPlace } from "@/types";
-import { uid } from "@/lib/utils";
-import { MapPin, Bookmark, BookmarkCheck, Loader2 } from "lucide-react";
+import { useState, useEffect, useCallback, Suspense } from "react";
+import { useSearchParams } from "next/navigation";
+import { Place, PlaceCategory } from "@/types";
+import PlaceCard from "@/components/PlaceCard";
+import MapView from "@/components/MapView";
+import { Search, SlidersHorizontal, MapPin } from "lucide-react";
+import { POPULAR_CITIES } from "@/lib/mock-data";
 
-interface Place {
-  name: string;
-  category: string;
-  address: string;
-  lat: number;
-  lng: number;
-}
+const CATEGORIES: { value: PlaceCategory | "all"; label: string; emoji: string }[] = [
+  { value: "all", label: "All", emoji: "🌍" },
+  { value: "restaurant", label: "Eat", emoji: "🍽" },
+  { value: "cafe", label: "Café", emoji: "☕" },
+  { value: "attraction", label: "See", emoji: "📸" },
+  { value: "museum", label: "Museum", emoji: "🏛" },
+  { value: "park", label: "Park", emoji: "🌿" },
+  { value: "shopping", label: "Shop", emoji: "🛍" },
+];
 
-const CATEGORIES = ["restaurants", "attractions", "hotels", "cafes", "museums", "parks"];
+function ExploreContent() {
+  const searchParams = useSearchParams();
+  const initialCity = searchParams.get("city") ?? "";
 
-export default function ExplorePage() {
-  const { savedPlaces, addSavedPlace, removeSavedPlace } = useStore();
-  const [category, setCategory] = useState("attractions");
+  const [query, setQuery] = useState(initialCity);
+  const [cityInput, setCityInput] = useState(initialCity);
+  const [category, setCategory] = useState<PlaceCategory | "all">("all");
   const [places, setPlaces] = useState<Place[]>([]);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
-  const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
+  const [selectedPlace, setSelectedPlace] = useState<Place | null>(null);
+  const [mapCenter, setMapCenter] = useState({ lat: 40.7128, lng: -74.006 });
+  const [showMap, setShowMap] = useState(true);
 
-  useEffect(() => {
-    navigator.geolocation?.getCurrentPosition(
-      (pos) => setUserLocation({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
-      () => setError("Location access denied. Enable location to explore nearby places.")
-    );
+  const fetchPlaces = useCallback(async (city: string, cat: string) => {
+    setLoading(true);
+    const params = new URLSearchParams({ city, category: cat });
+    const res = await fetch(`/api/places/search?${params}`);
+    const data = await res.json();
+    setPlaces(data.results ?? []);
+    if (data.center) setMapCenter(data.center);
+    setLoading(false);
   }, []);
 
-  async function search() {
-    if (!userLocation) {
-      setError("Waiting for location…");
-      return;
-    }
-    setLoading(true);
-    setError("");
-    try {
-      const { lat, lng } = userLocation;
-      const query = encodeURIComponent(category);
-      const res = await fetch(
-        `https://nominatim.openstreetmap.org/search?q=${query}&lat=${lat}&lon=${lng}&format=json&limit=12&bounded=0&addressdetails=1`
-      );
-      const data = await res.json();
-      setPlaces(
-        data.map((d: Record<string, unknown>) => ({
-          name: d.name || d.display_name,
-          category,
-          address: (d.display_name as string).split(",").slice(0, 3).join(", "),
-          lat: parseFloat(d.lat as string),
-          lng: parseFloat(d.lon as string),
-        }))
-      );
-    } catch {
-      setError("Failed to load places. Try again.");
-    } finally {
-      setLoading(false);
-    }
+  useEffect(() => {
+    if (query) fetchPlaces(query, category);
+  }, [query, category, fetchPlaces]);
+
+  function handleSearch(e: React.FormEvent) {
+    e.preventDefault();
+    setQuery(cityInput);
   }
 
-  function isSaved(name: string) {
-    return savedPlaces.some((p) => p.name === name);
-  }
-
-  async function toggleSave(place: Place) {
-    const existing = savedPlaces.find((p) => p.name === place.name);
-    if (existing) {
-      await removeSavedPlace(existing.id);
-    } else {
-      const sp: SavedPlace = { id: uid(), ...place, savedAt: new Date().toISOString() };
-      await addSavedPlace(sp);
-    }
+  function handlePlaceSelect(place: Place) {
+    setSelectedPlace(place);
+    setMapCenter({ lat: place.lat, lng: place.lng });
   }
 
   return (
-    <div className="flex flex-col">
-      <div className="bg-gradient-to-br from-sky-500 to-blue-700 text-white px-5 pt-12 pb-6">
-        <p className="text-sky-200 text-sm font-medium tracking-wide uppercase">Explore</p>
-        <h1 className="text-3xl font-bold mt-1">Nearby places</h1>
-        {userLocation && <p className="text-sky-200 text-xs mt-1">📍 Location found</p>}
-      </div>
+    <div className="flex flex-col h-full md:h-[calc(100vh-4rem)]">
+      {/* Header */}
+      <div className="px-4 pt-6 pb-3 md:pt-0 bg-white border-b border-stone-200 md:bg-transparent md:border-none">
+        <h1 className="text-2xl font-bold text-stone-900 mb-3">Explore</h1>
 
-      <div className="p-4 flex flex-col gap-4">
-        {/* Category pills */}
-        <div className="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1">
-          {CATEGORIES.map((c) => (
+        {/* Search */}
+        <form onSubmit={handleSearch} className="flex gap-2">
+          <div className="flex-1 flex items-center gap-2 bg-stone-100 rounded-xl px-3 py-2.5">
+            <Search size={16} className="text-stone-400 shrink-0" />
+            <input
+              value={cityInput}
+              onChange={(e) => setCityInput(e.target.value)}
+              placeholder="City or destination…"
+              className="flex-1 bg-transparent text-sm text-stone-900 placeholder:text-stone-400 outline-none"
+            />
+          </div>
+          <button
+            type="submit"
+            className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold rounded-xl transition-colors"
+          >
+            Go
+          </button>
+          <button
+            type="button"
+            onClick={() => setShowMap((v) => !v)}
+            className={`p-2.5 rounded-xl border transition-colors ${
+              showMap ? "bg-emerald-50 border-emerald-300 text-emerald-700" : "bg-white border-stone-200 text-stone-600"
+            }`}
+          >
+            <SlidersHorizontal size={16} />
+          </button>
+        </form>
+
+        {/* Category filter */}
+        <div className="flex gap-2 mt-3 overflow-x-auto pb-1 -mx-4 px-4 md:mx-0 md:px-0">
+          {CATEGORIES.map(({ value, label, emoji }) => (
             <button
-              key={c}
-              onClick={() => setCategory(c)}
-              className={`flex-shrink-0 px-4 py-1.5 rounded-full text-sm font-medium capitalize transition-colors ${
-                category === c ? "bg-sky-600 text-white" : "bg-stone-100 text-stone-600 hover:bg-stone-200"
+              key={value}
+              onClick={() => setCategory(value)}
+              className={`shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
+                category === value
+                  ? "bg-emerald-600 text-white"
+                  : "bg-stone-100 text-stone-600 hover:bg-stone-200"
               }`}
             >
-              {c}
+              <span>{emoji}</span>
+              {label}
             </button>
           ))}
         </div>
-
-        <button
-          onClick={search}
-          disabled={loading || !userLocation}
-          className="flex items-center justify-center gap-2 bg-sky-600 text-white py-3 rounded-2xl font-semibold disabled:opacity-50"
-        >
-          {loading ? <Loader2 size={18} className="animate-spin" /> : <MapPin size={18} />}
-          {loading ? "Searching…" : `Find ${category} nearby`}
-        </button>
-
-        {error && <p className="text-sm text-red-500 text-center">{error}</p>}
-
-        {places.length > 0 && (
-          <div className="flex flex-col gap-3">
-            {places.map((place, i) => (
-              <div key={i} className="flex items-start gap-3 bg-white border border-stone-200 rounded-2xl p-4 shadow-sm">
-                <div className="flex-1 min-w-0">
-                  <p className="font-semibold text-stone-800 truncate">{place.name}</p>
-                  <p className="text-xs text-stone-500 mt-0.5 line-clamp-2">{place.address}</p>
-                </div>
-                <button
-                  onClick={() => toggleSave(place)}
-                  className="shrink-0 p-1.5 rounded-full hover:bg-stone-100 transition-colors"
-                >
-                  {isSaved(place.name)
-                    ? <BookmarkCheck size={20} className="text-sky-500" />
-                    : <Bookmark size={20} className="text-stone-400" />
-                  }
-                </button>
-              </div>
-            ))}
-          </div>
-        )}
-
-        {savedPlaces.length > 0 && (
-          <div className="mt-2">
-            <h2 className="font-bold text-stone-800 mb-3">Saved places</h2>
-            <div className="flex flex-col gap-2">
-              {savedPlaces.map((p) => (
-                <div key={p.id} className="flex items-center gap-3 py-2 border-b border-stone-100 last:border-0">
-                  <span className="text-lg">📍</span>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-stone-700 truncate">{p.name}</p>
-                    <p className="text-xs text-stone-400 truncate">{p.address}</p>
-                  </div>
-                  <button onClick={() => removeSavedPlace(p.id)} className="text-stone-300 hover:text-red-400 text-lg">×</button>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
       </div>
+
+      {/* Body: map + list */}
+      <div className="flex-1 flex flex-col md:flex-row overflow-hidden">
+        {/* Map */}
+        {showMap && (
+          <div className="h-56 md:h-auto md:flex-1 relative">
+            <MapView
+              center={mapCenter}
+              places={places}
+              selectedPlaceId={selectedPlace?.id}
+              onPlaceSelect={handlePlaceSelect}
+              className="w-full h-full"
+            />
+          </div>
+        )}
+
+        {/* Results list */}
+        <div className="flex-1 md:max-w-sm overflow-y-auto border-t border-stone-200 md:border-t-0 md:border-l bg-white">
+          {/* Popular city shortcuts when no query */}
+          {!query && (
+            <div className="p-4">
+              <p className="text-xs font-semibold text-stone-400 uppercase tracking-wider mb-3">
+                Popular Cities
+              </p>
+              <div className="grid grid-cols-2 gap-2">
+                {POPULAR_CITIES.map((city) => (
+                  <button
+                    key={city.name}
+                    onClick={() => {
+                      setCityInput(city.name);
+                      setQuery(city.name);
+                      setMapCenter({ lat: city.lat, lng: city.lng });
+                    }}
+                    className="flex items-center gap-2 bg-stone-50 border border-stone-200 rounded-xl px-3 py-2.5 hover:bg-stone-100 transition-colors text-left"
+                  >
+                    <span className="text-xl">{city.emoji}</span>
+                    <div>
+                      <p className="text-sm font-semibold text-stone-800">{city.name}</p>
+                      <p className="text-xs text-stone-400">{city.country}</p>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {query && (
+            <div className="p-4">
+              <div className="flex items-center justify-between mb-3">
+                <p className="text-sm font-semibold text-stone-700 flex items-center gap-1.5">
+                  <MapPin size={14} className="text-emerald-500" />
+                  {query}
+                </p>
+                <p className="text-xs text-stone-400">{places.length} places</p>
+              </div>
+
+              {loading ? (
+                <div className="space-y-3">
+                  {[1, 2, 3].map((i) => (
+                    <div key={i} className="h-20 bg-stone-100 rounded-xl animate-pulse" />
+                  ))}
+                </div>
+              ) : places.length === 0 ? (
+                <div className="text-center py-10 text-stone-400">
+                  <MapPin size={32} strokeWidth={1} className="mx-auto mb-2" />
+                  <p className="text-sm">No places found</p>
+                  <p className="text-xs mt-1">Try a different city or category</p>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {places.map((place) => (
+                    <PlaceCard
+                      key={place.id}
+                      place={place}
+                      compact
+                      selected={selectedPlace?.id === place.id}
+                      onClick={() => handlePlaceSelect(place)}
+                    />
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Selected place detail drawer */}
+      {selectedPlace && (
+        <div className="fixed bottom-16 md:bottom-0 left-0 right-0 md:left-auto md:right-0 md:top-0 md:w-96 bg-white border-t md:border-l border-stone-200 shadow-xl md:shadow-none z-40 overflow-y-auto max-h-72 md:max-h-full">
+          <div className="relative">
+            <div
+              className="h-40 bg-cover bg-center"
+              style={{ backgroundImage: `url(${selectedPlace.imageUrl})` }}
+            />
+            <button
+              onClick={() => setSelectedPlace(null)}
+              className="absolute top-2 right-2 bg-black/50 text-white rounded-full p-1.5 text-xs"
+            >
+              ✕
+            </button>
+          </div>
+          <div className="p-4">
+            <h2 className="font-bold text-stone-900">{selectedPlace.name}</h2>
+            <p className="text-sm text-stone-500 mt-1">{selectedPlace.description}</p>
+            {selectedPlace.hours && (
+              <p className="text-xs text-stone-400 mt-2">🕐 {selectedPlace.hours}</p>
+            )}
+            {selectedPlace.phone && (
+              <p className="text-xs text-stone-400 mt-1">📞 {selectedPlace.phone}</p>
+            )}
+          </div>
+        </div>
+      )}
     </div>
+  );
+}
+
+export default function ExplorePage() {
+  return (
+    <Suspense>
+      <ExploreContent />
+    </Suspense>
   );
 }

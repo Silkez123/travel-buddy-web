@@ -9,7 +9,7 @@ const inter = Inter({ variable: "--font-geist", subsets: ["latin"] });
 
 export const metadata: Metadata = {
   title: "Travel Buddy",
-  description: "Your travel companion for creating postcards and organizing trips",
+  description: "Explore places, book experiences, translate, get eSIMs, and plan trips",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

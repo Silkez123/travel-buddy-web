@@ -1,14 +1,14 @@
 "use client";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Home, BookOpen, Globe, Map, Stamp } from "lucide-react";
+import { Home, Map, Ticket, Languages, Wifi } from "lucide-react";
 
 const tabs = [
   { href: "/", label: "Home", icon: Home },
-  { href: "/trips", label: "Trips", icon: BookOpen },
-  { href: "/postcards", label: "Postcards", icon: Globe },
   { href: "/explore", label: "Explore", icon: Map },
-  { href: "/passport", label: "Passport", icon: Stamp },
+  { href: "/experiences", label: "Tours", icon: Ticket },
+  { href: "/translate", label: "Translate", icon: Languages },
+  { href: "/esim", label: "eSIM", icon: Wifi },
 ];
 
 export default function BottomNav() {

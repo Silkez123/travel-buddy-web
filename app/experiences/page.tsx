@@ -1,127 +1,225 @@
 "use client";
-import { useState } from "react";
-import { Compass, ExternalLink, ArrowRight } from "lucide-react";
+import { useState, useEffect, useCallback } from "react";
+import { Experience, ExperienceCategory } from "@/types";
+import ExperienceCard from "@/components/ExperienceCard";
+import { Search, Ticket } from "lucide-react";
+import { POPULAR_CITIES } from "@/lib/mock-data";
 
-const PARTNERS = [
-  {
-    name: "Viator",
-    logo: "🗺️",
-    description: "300,000+ tours, activities, and experiences worldwide",
-    badge: "Most Popular",
-    badgeColor: "bg-emerald-100 text-emerald-700",
-    getUrl: (dest: string) =>
-      `https://www.viator.com/searchResults/all?text=${encodeURIComponent(dest)}`,
-  },
-  {
-    name: "GetYourGuide",
-    logo: "🎯",
-    description: "Skip-the-line tickets, day trips, and local adventures",
-    badge: "Skip the Line",
-    badgeColor: "bg-yellow-100 text-yellow-700",
-    getUrl: (dest: string) =>
-      `https://www.getyourguide.com/s/?q=${encodeURIComponent(dest)}&partner_id=TB2024`,
-  },
-  {
-    name: "Airbnb Experiences",
-    logo: "🤝",
-    description: "Unique activities hosted by passionate locals",
-    badge: "Hosted Locally",
-    badgeColor: "bg-rose-100 text-rose-700",
-    getUrl: (dest: string) =>
-      `https://www.airbnb.com/experiences?query=${encodeURIComponent(dest)}`,
-  },
-  {
-    name: "Klook",
-    logo: "🎟️",
-    description: "Best for Asia travel — attractions, transport passes & more",
-    badge: "Asia Specialist",
-    badgeColor: "bg-orange-100 text-orange-700",
-    getUrl: (dest: string) =>
-      `https://www.klook.com/en-US/search/?query=${encodeURIComponent(dest)}`,
-  },
+const CATEGORIES: { value: ExperienceCategory | "all"; label: string; emoji: string }[] = [
+  { value: "all", label: "All", emoji: "🌍" },
+  { value: "tour", label: "Tours", emoji: "🗺" },
+  { value: "food", label: "Food", emoji: "🍜" },
+  { value: "adventure", label: "Adventure", emoji: "🏔" },
+  { value: "culture", label: "Culture", emoji: "🏛" },
+  { value: "activity", label: "Activities", emoji: "🎯" },
 ];
 
-const CATEGORIES = [
-  { emoji: "🏛️", label: "Culture & History" },
-  { emoji: "🍜", label: "Food & Drink" },
-  { emoji: "🧗", label: "Adventure & Sports" },
-  { emoji: "🎨", label: "Art & Workshops" },
-  { emoji: "🚤", label: "Water Activities" },
-  { emoji: "🌿", label: "Nature & Wildlife" },
-  { emoji: "🎭", label: "Shows & Events" },
-  { emoji: "📸", label: "Photography Tours" },
+const PRICE_FILTERS = [
+  { label: "Any price", max: 9999 },
+  { label: "Under $50", max: 50 },
+  { label: "Under $100", max: 100 },
+  { label: "Under $200", max: 200 },
 ];
 
 export default function ExperiencesPage() {
-  const [dest, setDest] = useState("");
+  const [cityInput, setCityInput] = useState("");
+  const [query, setQuery] = useState("");
+  const [category, setCategory] = useState<ExperienceCategory | "all">("all");
+  const [maxPrice, setMaxPrice] = useState(9999);
+  const [experiences, setExperiences] = useState<Experience[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [selected, setSelected] = useState<Experience | null>(null);
+
+  const fetchExperiences = useCallback(async (city: string, cat: string, price: number) => {
+    setLoading(true);
+    const params = new URLSearchParams({ city, category: cat, maxPrice: String(price) });
+    const res = await fetch(`/api/experiences?${params}`);
+    const data = await res.json();
+    setExperiences(data.results ?? []);
+    setLoading(false);
+  }, []);
+
+  useEffect(() => {
+    fetchExperiences(query, category, maxPrice);
+  }, [query, category, maxPrice, fetchExperiences]);
+
+  function handleSearch(e: React.FormEvent) {
+    e.preventDefault();
+    setQuery(cityInput);
+  }
 
   return (
     <div className="flex flex-col">
-      <div className="bg-gradient-to-br from-emerald-500 to-teal-700 text-white px-5 pt-12 pb-8 md:rounded-2xl md:mb-6">
-        <p className="text-emerald-200 text-sm font-medium tracking-wide uppercase">Book & Save</p>
-        <h1 className="text-3xl font-bold mt-1 flex items-center gap-2"><Compass size={28} /> Experiences</h1>
-        <p className="text-emerald-200 text-sm mt-1">Tours, activities, and local adventures</p>
+      {/* Header */}
+      <div className="px-4 pt-6 pb-4 md:pt-0">
+        <h1 className="text-2xl font-bold text-stone-900 mb-1">Experiences</h1>
+        <p className="text-sm text-stone-500 mb-4">Tours, activities & adventures via Viator</p>
+
+        <form onSubmit={handleSearch} className="flex gap-2 mb-3">
+          <div className="flex-1 flex items-center gap-2 bg-stone-100 rounded-xl px-3 py-2.5">
+            <Search size={16} className="text-stone-400 shrink-0" />
+            <input
+              value={cityInput}
+              onChange={(e) => setCityInput(e.target.value)}
+              placeholder="City, country or destination…"
+              className="flex-1 bg-transparent text-sm text-stone-900 placeholder:text-stone-400 outline-none"
+            />
+          </div>
+          <button
+            type="submit"
+            className="px-4 py-2.5 bg-violet-600 hover:bg-violet-700 text-white text-sm font-semibold rounded-xl transition-colors"
+          >
+            Search
+          </button>
+        </form>
+
+        {/* Category filter */}
+        <div className="flex gap-2 overflow-x-auto pb-1 -mx-4 px-4 md:mx-0 md:px-0 mb-3">
+          {CATEGORIES.map(({ value, label, emoji }) => (
+            <button
+              key={value}
+              onClick={() => setCategory(value)}
+              className={`shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
+                category === value
+                  ? "bg-violet-600 text-white"
+                  : "bg-stone-100 text-stone-600 hover:bg-stone-200"
+              }`}
+            >
+              {emoji} {label}
+            </button>
+          ))}
+        </div>
+
+        {/* Price filter */}
+        <div className="flex gap-2 overflow-x-auto pb-1 -mx-4 px-4 md:mx-0 md:px-0">
+          {PRICE_FILTERS.map(({ label, max }) => (
+            <button
+              key={max}
+              onClick={() => setMaxPrice(max)}
+              className={`shrink-0 px-3 py-1 rounded-full text-xs font-medium border transition-colors ${
+                maxPrice === max
+                  ? "bg-stone-900 text-white border-stone-900"
+                  : "bg-white text-stone-600 border-stone-200 hover:border-stone-400"
+              }`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
       </div>
 
-      <div className="p-4 md:p-0 flex flex-col gap-5">
-        {/* Category chips */}
-        <div className="flex gap-2 overflow-x-auto pb-1 md:pb-0 md:flex-wrap">
-          {CATEGORIES.map((c) => (
-            <div key={c.label} className="flex-shrink-0 bg-white border border-stone-200 rounded-full px-3 py-1.5 flex items-center gap-1.5 text-sm text-stone-700 font-medium">
-              <span>{c.emoji}</span> {c.label}
-            </div>
-          ))}
-        </div>
-
-        {/* Search */}
-        <div className="bg-white border border-stone-200 rounded-2xl p-5 flex flex-col gap-3">
-          <h2 className="font-semibold text-stone-800">Find Experiences</h2>
-          <input
-            value={dest}
-            onChange={(e) => setDest(e.target.value)}
-            placeholder="Where are you going? e.g. Kyoto, Japan"
-            className="w-full border border-stone-300 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400"
-          />
-        </div>
-
-        {/* Partner cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {PARTNERS.map((p) => (
-            <a
-              key={p.name}
-              href={p.getUrl(dest)}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="bg-white border border-stone-200 rounded-2xl p-5 flex flex-col gap-3 hover:border-emerald-300 hover:shadow-md transition-all group"
-            >
-              <div className="flex items-start justify-between">
-                <div className="flex items-center gap-3">
-                  <span className="text-3xl">{p.logo}</span>
-                  <div>
-                    <p className="font-bold text-stone-900">{p.name}</p>
-                    <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${p.badgeColor}`}>{p.badge}</span>
-                  </div>
-                </div>
-                <ExternalLink size={16} className="text-stone-400 group-hover:text-emerald-500 transition-colors mt-1" />
-              </div>
-              <p className="text-sm text-stone-500">{p.description}</p>
-              <div className="flex items-center gap-1 text-emerald-600 text-sm font-medium">
-                Explore activities <ArrowRight size={14} />
-              </div>
-            </a>
-          ))}
-        </div>
-
-        <div className="bg-amber-50 border border-amber-200 rounded-2xl p-5">
-          <p className="font-semibold text-amber-800 mb-3">💡 Experience Tips</p>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-sm text-amber-700">
-            <div className="flex gap-2"><span>⏰</span><span>Book popular attractions weeks in advance</span></div>
-            <div className="flex gap-2"><span>🌅</span><span>Early morning tours have smaller crowds and better light</span></div>
-            <div className="flex gap-2"><span>🗣️</span><span>Local guides reveal stories guidebooks don't have</span></div>
-            <div className="flex gap-2"><span>🔄</span><span>Free cancellation tours give you maximum flexibility</span></div>
+      {/* Popular city shortcuts when no query */}
+      {!query && (
+        <div className="px-4 mb-4">
+          <p className="text-xs font-semibold text-stone-400 uppercase tracking-wider mb-3">
+            Browse by destination
+          </p>
+          <div className="flex gap-2 overflow-x-auto pb-1 -mx-4 px-4 md:mx-0 md:px-0 md:flex-wrap">
+            {POPULAR_CITIES.map((city) => (
+              <button
+                key={city.name}
+                onClick={() => {
+                  setCityInput(city.name);
+                  setQuery(city.name);
+                }}
+                className="shrink-0 flex items-center gap-2 bg-white border border-stone-200 rounded-xl px-3 py-2 hover:bg-stone-50 transition-colors"
+              >
+                <span>{city.emoji}</span>
+                <span className="text-sm font-medium text-stone-700">{city.name}</span>
+              </button>
+            ))}
           </div>
         </div>
+      )}
+
+      {/* Results */}
+      <div className="px-4 pb-6">
+        {query && (
+          <p className="text-sm font-semibold text-stone-600 mb-3">
+            {loading ? "Searching…" : `${experiences.length} experiences in ${query}`}
+          </p>
+        )}
+
+        {loading ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {[1, 2, 3, 4].map((i) => (
+              <div key={i} className="h-72 bg-stone-100 rounded-2xl animate-pulse" />
+            ))}
+          </div>
+        ) : experiences.length === 0 && query ? (
+          <div className="text-center py-16 text-stone-400">
+            <Ticket size={40} strokeWidth={1} className="mx-auto mb-3" />
+            <p className="text-sm font-medium">No experiences found</p>
+            <p className="text-xs mt-1">Try a different destination or category</p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {experiences.map((exp) => (
+              <ExperienceCard
+                key={exp.id}
+                experience={exp}
+                onClick={() => setSelected(exp)}
+              />
+            ))}
+          </div>
+        )}
       </div>
+
+      {/* Experience detail modal */}
+      {selected && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-end md:items-center justify-center p-0 md:p-4">
+          <div className="bg-white rounded-t-2xl md:rounded-2xl w-full md:max-w-lg max-h-[90vh] overflow-y-auto">
+            <div
+              className="h-48 bg-cover bg-center relative rounded-t-2xl"
+              style={{ backgroundImage: `url(${selected.imageUrl})` }}
+            >
+              <button
+                onClick={() => setSelected(null)}
+                className="absolute top-3 right-3 bg-black/50 text-white rounded-full w-8 h-8 flex items-center justify-center text-sm"
+              >
+                ✕
+              </button>
+            </div>
+            <div className="p-5">
+              <div className="flex items-start justify-between gap-3 mb-3">
+                <h2 className="font-bold text-stone-900 text-lg leading-snug flex-1">
+                  {selected.title}
+                </h2>
+                <div className="text-right shrink-0">
+                  <p className="text-xl font-bold text-stone-900">${selected.price}</p>
+                  <p className="text-xs text-stone-400">per person</p>
+                </div>
+              </div>
+              <p className="text-sm text-stone-600 mb-4">{selected.description}</p>
+              <div className="mb-4">
+                <p className="text-xs font-semibold text-stone-500 uppercase tracking-wider mb-2">Highlights</p>
+                <ul className="space-y-1">
+                  {selected.highlights.map((h) => (
+                    <li key={h} className="flex items-start gap-2 text-sm text-stone-700">
+                      <span className="text-emerald-500 mt-0.5">✓</span>
+                      {h}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+              <div className="mb-5">
+                <p className="text-xs font-semibold text-stone-500 uppercase tracking-wider mb-2">Included</p>
+                <ul className="space-y-1">
+                  {selected.included.map((item) => (
+                    <li key={item} className="flex items-start gap-2 text-sm text-stone-700">
+                      <span className="text-blue-400 mt-0.5">✓</span>
+                      {item}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+              <button className="w-full py-3 bg-violet-600 hover:bg-violet-700 text-white font-semibold rounded-xl transition-colors">
+                Book on Viator — ${selected.price}/person
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

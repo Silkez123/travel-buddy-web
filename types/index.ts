@@ -48,3 +48,69 @@ export interface SavedPlace {
   lng: number;
   savedAt: string;
 }
+
+export type PlaceCategory = "restaurant" | "attraction" | "hotel" | "cafe" | "bar" | "museum" | "park" | "shopping";
+
+export interface Place {
+  id: string;
+  name: string;
+  category: PlaceCategory;
+  address: string;
+  city: string;
+  lat: number;
+  lng: number;
+  rating: number;
+  reviewCount: number;
+  priceLevel: 1 | 2 | 3 | 4;
+  description: string;
+  imageUrl: string;
+  source: "yelp" | "tripadvisor" | "openstreetmap";
+  phone?: string;
+  hours?: string;
+  tags: string[];
+}
+
+export type ExperienceCategory = "tour" | "activity" | "food" | "adventure" | "culture" | "transport";
+
+export interface Experience {
+  id: string;
+  title: string;
+  category: ExperienceCategory;
+  city: string;
+  country: string;
+  durationHours: number;
+  price: number;
+  currency: string;
+  rating: number;
+  reviewCount: number;
+  imageUrl: string;
+  description: string;
+  highlights: string[];
+  provider: string;
+  source: "viator";
+  groupSize: string;
+  languages: string[];
+  included: string[];
+}
+
+export interface EsimPlan {
+  id: string;
+  carrier: string;
+  country: string;
+  countryCode: string;
+  flag: string;
+  dataGb: number;
+  durationDays: number;
+  priceUsd: number;
+  coverage: "local" | "regional" | "global";
+  network: string;
+  topUpAvailable: boolean;
+  hotspotAllowed: boolean;
+  source: "airalo";
+  popular: boolean;
+}
+
+export interface TranslationResult {
+  detectedSourceLang: string;
+  translatedText: string;
+}
