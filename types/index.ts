@@ -91,6 +91,37 @@ export interface Experience {
   groupSize: string;
   languages: string[];
   included: string[];
+  bookingUrl?: string;
+}
+
+export interface SavedExperience {
+  id: string;
+  experience: Experience;
+  booked: boolean;
+  notes?: string;
+  savedAt: string;
+}
+
+export type BoardingPassClass = "economy" | "business" | "first";
+
+export interface BoardingPass {
+  id: string;
+  airline: string;
+  flightNumber: string;
+  origin: string;
+  originCode: string;
+  destination: string;
+  destinationCode: string;
+  departureDate: string;
+  departureTime: string;
+  arrivalTime: string;
+  seat: string;
+  gate?: string;
+  terminal?: string;
+  bookingRef: string;
+  passengerName: string;
+  class: BoardingPassClass;
+  createdAt: string;
 }
 
 export interface EsimPlan {

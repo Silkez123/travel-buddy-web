@@ -1,9 +1,11 @@
 "use client";
 import { useState, useEffect, useCallback } from "react";
-import { Experience, ExperienceCategory } from "@/types";
+import { Experience, ExperienceCategory, SavedExperience } from "@/types";
 import ExperienceCard from "@/components/ExperienceCard";
-import { Search, Ticket } from "lucide-react";
+import { Search, Ticket, Bookmark, BookmarkCheck, ExternalLink } from "lucide-react";
 import { POPULAR_CITIES } from "@/lib/mock-data";
+import { useStore } from "@/lib/store";
+import { uid } from "@/lib/utils";
 
 const CATEGORIES: { value: ExperienceCategory | "all"; label: string; emoji: string }[] = [
   { value: "all", label: "All", emoji: "🌍" },
@@ -22,6 +24,7 @@ const PRICE_FILTERS = [
 ];
 
 export default function ExperiencesPage() {
+  const { savedExperiences, addSavedExperience, removeSavedExperience } = useStore();
   const [cityInput, setCityInput] = useState("");
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState<ExperienceCategory | "all">("all");
@@ -29,6 +32,25 @@ export default function ExperiencesPage() {
   const [experiences, setExperiences] = useState<Experience[]>([]);
   const [loading, setLoading] = useState(false);
   const [selected, setSelected] = useState<Experience | null>(null);
+
+  function isSaved(id: string) {
+    return savedExperiences.some((e) => e.experience.id === id);
+  }
+
+  async function toggleSave(exp: Experience) {
+    const existing = savedExperiences.find((e) => e.experience.id === exp.id);
+    if (existing) {
+      await removeSavedExperience(existing.id);
+    } else {
+      const saved: SavedExperience = {
+        id: uid(),
+        experience: exp,
+        booked: false,
+        savedAt: new Date().toISOString(),
+      };
+      await addSavedExperience(saved);
+    }
+  }
 
   const fetchExperiences = useCallback(async (city: string, cat: string, price: number) => {
     setLoading(true);
@@ -213,9 +235,28 @@ export default function ExperiencesPage() {
                   ))}
                 </ul>
               </div>
-              <button className="w-full py-3 bg-violet-600 hover:bg-violet-700 text-white font-semibold rounded-xl transition-colors">
-                Book on Viator — ${selected.price}/person
-              </button>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => toggleSave(selected)}
+                  className={`flex items-center gap-2 px-4 py-3 rounded-xl font-semibold border transition-colors ${
+                    isSaved(selected.id)
+                      ? "bg-emerald-50 border-emerald-300 text-emerald-700"
+                      : "bg-stone-50 border-stone-300 text-stone-700 hover:bg-stone-100"
+                  }`}
+                >
+                  {isSaved(selected.id) ? <BookmarkCheck size={18} /> : <Bookmark size={18} />}
+                  {isSaved(selected.id) ? "Saved" : "Save"}
+                </button>
+                <a
+                  href={selected.bookingUrl ?? `https://www.viator.com/search/${encodeURIComponent(selected.title)}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex-1 flex items-center justify-center gap-2 py-3 bg-violet-600 hover:bg-violet-700 text-white font-semibold rounded-xl transition-colors"
+                >
+                  Book on Viator — ${selected.price}/person
+                  <ExternalLink size={15} />
+                </a>
+              </div>
             </div>
           </div>
         </div>

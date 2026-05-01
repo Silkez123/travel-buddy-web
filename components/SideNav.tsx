@@ -5,13 +5,15 @@ import { useStore } from "@/lib/store";
 import {
   Home, BookOpen, Globe, Map, Stamp,
   Ticket, Wifi, Languages, PlusCircle,
-  DollarSign, LogIn, LogOut, User,
+  DollarSign, LogIn, LogOut, User, Plane, Bookmark,
 } from "lucide-react";
 
 const mainNav = [
   { href: "/", label: "Home", icon: Home },
   { href: "/explore", label: "Explore", icon: Map },
   { href: "/experiences", label: "Experiences", icon: Ticket },
+  { href: "/tickets", label: "My Tickets", icon: Bookmark },
+  { href: "/passes", label: "Boarding Passes", icon: Plane },
   { href: "/translate", label: "Translate", icon: Languages },
   { href: "/currency", label: "Currency", icon: DollarSign },
   { href: "/esim", label: "eSIM", icon: Wifi },

@@ -38,8 +38,9 @@ function mapViatorProduct(p: Record<string, unknown>): Experience {
   const location = p.productUrl as string ?? "";
   const cityMatch = location.match(/\/([^/]+)-tours/);
 
+  const productCode = (p.productCode as string) ?? String(Math.random());
   return {
-    id: (p.productCode as string) ?? String(Math.random()),
+    id: productCode,
     title,
     category: viatorCategoryToLocal(tags),
     city: cityMatch?.[1]?.replace(/-/g, " ") ?? "",
@@ -63,6 +64,7 @@ function mapViatorProduct(p: Record<string, unknown>): Experience {
       .slice(0, 3)
       .map((inc) => inc.otherDescription ?? "")
       .filter(Boolean),
+    bookingUrl: (p.productUrl as string) || `https://www.viator.com/tours/${productCode}/`,
   } satisfies Experience;
 }
 
