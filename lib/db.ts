@@ -1,5 +1,8 @@
 import { openDB, DBSchema, IDBPDatabase } from "idb";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { Postcard, Trip, SavedPlace } from "@/types";
+
+// ── IndexedDB (local / offline) ───────────────────────────────────────────────
 
 interface TravelBuddyDB extends DBSchema {
   postcards: { key: string; value: Postcard; indexes: { by_trip: string } };
@@ -23,48 +26,207 @@ function getDB() {
   return dbPromise;
 }
 
-// Postcards
-export async function getAllPostcards(): Promise<Postcard[]> {
+// Postcards — IndexedDB
+export async function idb_getAllPostcards(): Promise<Postcard[]> {
   const db = await getDB();
   return db.getAll("postcards");
 }
-export async function getPostcardsByTrip(tripId: string): Promise<Postcard[]> {
-  const db = await getDB();
-  return db.getAllFromIndex("postcards", "by_trip", tripId);
-}
-export async function savePostcard(p: Postcard): Promise<void> {
+export async function idb_savePostcard(p: Postcard): Promise<void> {
   const db = await getDB();
   await db.put("postcards", p);
 }
-export async function deletePostcard(id: string): Promise<void> {
+export async function idb_deletePostcard(id: string): Promise<void> {
   const db = await getDB();
   await db.delete("postcards", id);
 }
 
-// Trips
-export async function getAllTrips(): Promise<Trip[]> {
+// Trips — IndexedDB
+export async function idb_getAllTrips(): Promise<Trip[]> {
   const db = await getDB();
   return db.getAll("trips");
 }
-export async function saveTrip(t: Trip): Promise<void> {
+export async function idb_saveTrip(t: Trip): Promise<void> {
   const db = await getDB();
   await db.put("trips", t);
 }
-export async function deleteTrip(id: string): Promise<void> {
+export async function idb_deleteTrip(id: string): Promise<void> {
   const db = await getDB();
   await db.delete("trips", id);
 }
 
-// Saved Places
-export async function getAllSavedPlaces(): Promise<SavedPlace[]> {
+// Saved Places — IndexedDB
+export async function idb_getAllSavedPlaces(): Promise<SavedPlace[]> {
   const db = await getDB();
   return db.getAll("saved_places");
 }
-export async function savePlaceItem(p: SavedPlace): Promise<void> {
+export async function idb_savePlaceItem(p: SavedPlace): Promise<void> {
   const db = await getDB();
   await db.put("saved_places", p);
 }
-export async function deleteSavedPlace(id: string): Promise<void> {
+export async function idb_deleteSavedPlace(id: string): Promise<void> {
   const db = await getDB();
   await db.delete("saved_places", id);
 }
+
+// ── Supabase (cloud / cross-device) ──────────────────────────────────────────
+
+function rowToTrip(row: Record<string, unknown>): Trip {
+  return {
+    id: row.id as string,
+    name: row.name as string,
+    destination: row.destination as string,
+    emoji: row.emoji as string,
+    startDate: row.start_date as string,
+    endDate: (row.end_date as string) ?? "",
+    createdAt: row.created_at as string,
+  };
+}
+
+function rowToPostcard(row: Record<string, unknown>): Postcard {
+  return {
+    id: row.id as string,
+    tripId: (row.trip_id as string) ?? undefined,
+    photos: (row.photos as string[]) ?? [],
+    message: (row.message as string) ?? "",
+    location: (row.location as string) ?? "",
+    templateId: (row.template_id as Postcard["templateId"]) ?? "classic",
+    stickers: (row.stickers as Postcard["stickers"]) ?? [],
+    messageFontSize: (row.message_font_size as number) ?? 14,
+    messageColor: (row.message_color as string) ?? "#1c1917",
+    createdAt: row.created_at as string,
+  };
+}
+
+function rowToSavedPlace(row: Record<string, unknown>): SavedPlace {
+  return {
+    id: row.id as string,
+    name: row.name as string,
+    category: row.category as string,
+    address: (row.address as string) ?? "",
+    lat: row.lat as number,
+    lng: row.lng as number,
+    savedAt: row.saved_at as string,
+  };
+}
+
+// Trips — Supabase
+export async function sb_getAllTrips(supabase: SupabaseClient): Promise<Trip[]> {
+  const { data, error } = await supabase
+    .from("trips")
+    .select("*")
+    .order("created_at", { ascending: false });
+  if (error) throw error;
+  return (data ?? []).map(rowToTrip);
+}
+
+export async function sb_saveTrip(supabase: SupabaseClient, t: Trip, userId: string): Promise<void> {
+  const { error } = await supabase.from("trips").upsert({
+    id: t.id,
+    user_id: userId,
+    name: t.name,
+    destination: t.destination,
+    emoji: t.emoji,
+    start_date: t.startDate,
+    end_date: t.endDate || null,
+    created_at: t.createdAt,
+  });
+  if (error) throw error;
+}
+
+export async function sb_deleteTrip(supabase: SupabaseClient, id: string): Promise<void> {
+  const { error } = await supabase.from("trips").delete().eq("id", id);
+  if (error) throw error;
+}
+
+// Postcards — Supabase
+export async function sb_getAllPostcards(supabase: SupabaseClient): Promise<Postcard[]> {
+  const { data, error } = await supabase
+    .from("postcards")
+    .select("*")
+    .order("created_at", { ascending: false });
+  if (error) throw error;
+  return (data ?? []).map(rowToPostcard);
+}
+
+export async function sb_savePostcard(supabase: SupabaseClient, p: Postcard, userId: string): Promise<void> {
+  const { error } = await supabase.from("postcards").upsert({
+    id: p.id,
+    user_id: userId,
+    trip_id: p.tripId ?? null,
+    photos: p.photos,
+    message: p.message,
+    location: p.location,
+    template_id: p.templateId,
+    stickers: p.stickers,
+    message_font_size: p.messageFontSize,
+    message_color: p.messageColor,
+    created_at: p.createdAt,
+  });
+  if (error) throw error;
+}
+
+export async function sb_deletePostcard(supabase: SupabaseClient, id: string): Promise<void> {
+  const { error } = await supabase.from("postcards").delete().eq("id", id);
+  if (error) throw error;
+}
+
+// Saved Places — Supabase
+export async function sb_getAllSavedPlaces(supabase: SupabaseClient): Promise<SavedPlace[]> {
+  const { data, error } = await supabase
+    .from("saved_places")
+    .select("*")
+    .order("saved_at", { ascending: false });
+  if (error) throw error;
+  return (data ?? []).map(rowToSavedPlace);
+}
+
+export async function sb_savePlaceItem(supabase: SupabaseClient, p: SavedPlace, userId: string): Promise<void> {
+  const { error } = await supabase.from("saved_places").upsert({
+    id: p.id,
+    user_id: userId,
+    name: p.name,
+    category: p.category,
+    address: p.address,
+    lat: p.lat,
+    lng: p.lng,
+    saved_at: p.savedAt,
+  });
+  if (error) throw error;
+}
+
+export async function sb_deleteSavedPlace(supabase: SupabaseClient, id: string): Promise<void> {
+  const { error } = await supabase.from("saved_places").delete().eq("id", id);
+  if (error) throw error;
+}
+
+// ── Migration helper ──────────────────────────────────────────────────────────
+// Call after login to push any locally-stored data to Supabase
+
+export async function migrateLocalToSupabase(supabase: SupabaseClient, userId: string): Promise<void> {
+  const [localTrips, localPostcards, localPlaces] = await Promise.all([
+    idb_getAllTrips(),
+    idb_getAllPostcards(),
+    idb_getAllSavedPlaces(),
+  ]);
+
+  await Promise.all([
+    ...localTrips.map((t) => sb_saveTrip(supabase, t, userId).catch(() => {})),
+    ...localPostcards.map((p) => sb_savePostcard(supabase, p, userId).catch(() => {})),
+    ...localPlaces.map((p) => sb_savePlaceItem(supabase, p, userId).catch(() => {})),
+  ]);
+}
+
+// Legacy aliases kept for any remaining code that calls the old names
+export const getAllPostcards = idb_getAllPostcards;
+export const getPostcardsByTrip = async (tripId: string): Promise<Postcard[]> => {
+  const all = await idb_getAllPostcards();
+  return all.filter((p) => p.tripId === tripId);
+};
+export const savePostcard = idb_savePostcard;
+export const deletePostcard = idb_deletePostcard;
+export const getAllTrips = idb_getAllTrips;
+export const saveTrip = idb_saveTrip;
+export const deleteTrip = idb_deleteTrip;
+export const getAllSavedPlaces = idb_getAllSavedPlaces;
+export const savePlaceItem = idb_savePlaceItem;
+export const deleteSavedPlace = idb_deleteSavedPlace;

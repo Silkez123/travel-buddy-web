@@ -1,13 +1,13 @@
 "use client";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Home, Map, Ticket, Languages, Wifi } from "lucide-react";
+import { Home, Map, Languages, DollarSign, Wifi } from "lucide-react";
 
 const tabs = [
   { href: "/", label: "Home", icon: Home },
   { href: "/explore", label: "Explore", icon: Map },
-  { href: "/experiences", label: "Tours", icon: Ticket },
   { href: "/translate", label: "Translate", icon: Languages },
+  { href: "/currency", label: "Currency", icon: DollarSign },
   { href: "/esim", label: "eSIM", icon: Wifi },
 ];
 
