@@ -248,7 +248,7 @@ export default function ExperiencesPage() {
                   {isSaved(selected.id) ? "Saved" : "Save"}
                 </button>
                 <a
-                  href={selected.bookingUrl ?? `https://www.viator.com/search/${encodeURIComponent(selected.title)}`}
+                  href={selected.bookingUrl ?? `https://www.viator.com/search?text=${encodeURIComponent(selected.title)}`}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="flex-1 flex items-center justify-center gap-2 py-3 bg-violet-600 hover:bg-violet-700 text-white font-semibold rounded-xl transition-colors"

@@ -39,6 +39,12 @@ function mapViatorProduct(p: Record<string, unknown>): Experience {
   const cityMatch = location.match(/\/([^/]+)-tours/);
 
   const productCode = (p.productCode as string) ?? String(Math.random());
+  const rawProductUrl = p.productUrl as string | undefined;
+  // Only use productUrl if it looks like a real deep link (contains the product code)
+  const bookingUrl = (rawProductUrl && rawProductUrl.includes(productCode))
+    ? rawProductUrl
+    : `https://www.viator.com/search?text=${encodeURIComponent(title)}`;
+
   return {
     id: productCode,
     title,
@@ -64,7 +70,7 @@ function mapViatorProduct(p: Record<string, unknown>): Experience {
       .slice(0, 3)
       .map((inc) => inc.otherDescription ?? "")
       .filter(Boolean),
-    bookingUrl: (p.productUrl as string) || `https://www.viator.com/tours/${productCode}/`,
+    bookingUrl,
   } satisfies Experience;
 }
 

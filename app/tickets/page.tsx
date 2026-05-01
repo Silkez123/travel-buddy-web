@@ -139,7 +139,7 @@ function ExperienceTicketCard({
 
         <div className="flex items-center gap-2">
           <a
-            href={exp.bookingUrl ?? `https://www.viator.com/search/${encodeURIComponent(exp.title)}`}
+            href={exp.bookingUrl ?? `https://www.viator.com/search?text=${encodeURIComponent(exp.title)}`}
             target="_blank"
             rel="noopener noreferrer"
             className="p-1.5 rounded-full text-violet-600 hover:bg-violet-50 transition-colors"
